@@ -1,0 +1,40 @@
+# Compila el APK de depuración en la nube (GitHub Actions) sin Android Studio.
+# Uso: sube este proyecto a un repositorio de GitHub -> pestaña Actions ->
+# "Construir APK de InspSeg" -> Run workflow. Al terminar, descarga el artefacto
+# "InspSeg-debug-apk" (contiene app-debug.apk).
+name: Construir APK de InspSeg
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Pruebas unitarias
+        run: chmod +x gradlew && ./gradlew testDebugUnitTest --stacktrace
+
+      - name: Compilar APK debug
+        run: ./gradlew assembleDebug --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: InspSeg-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reporte-pruebas
+          path: app/build/reports/tests/

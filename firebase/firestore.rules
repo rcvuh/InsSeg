@@ -1,0 +1,46 @@
+rules_version = '2';
+
+// Cloud Firestore · InspSeg
+// Cada inspector solo lee y escribe dentro de inspectores/{su uid}.
+// Las validaciones repiten las reglas de dominio (CloudSecurityRules, SafetyRuleEngine).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    match /inspectores/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.nombre is string
+        && request.resource.data.nombre.size() <= 80;
+      allow delete: if false;
+
+      match /recorridos/{recorridoId} {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.inspectorUid == uid
+          && request.resource.data.estado in ['CONFORME', 'REINSPECCION_24H', 'DETENCION_LABORES']
+          && request.resource.data.cumplimiento >= 0
+          && request.resource.data.cumplimiento <= 100
+          && request.resource.data.respuestas is list;
+        allow delete: if false;   // un recorrido cerrado es evidencia: no se borra
+      }
+
+      match /hallazgos/{hallazgoId} {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.inspectorUid == uid
+          && request.resource.data.estado in ['ABIERTO', 'EN_MITIGACION', 'CERRADO']
+          && request.resource.data.nota.size() >= 10;
+        allow delete: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

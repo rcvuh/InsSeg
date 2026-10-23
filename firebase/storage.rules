@@ -1,0 +1,16 @@
+rules_version = '2';
+
+// Cloud Storage · InspSeg
+// Evidencias fotograficas: solo su inspector las sube y las ve; imagenes de maximo 5 MB.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /evidencias/{uid}/{recorrido}/{archivo} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if false;
+    }
+  }
+}
